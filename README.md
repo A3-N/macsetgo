@@ -7,7 +7,7 @@ Built in Go with [Bubbletea](https://github.com/charmbracelet/bubbletea) + [Lipg
 > [!IMPORTANT]
 > Requires root privileges to run.
 
-![main](img/main.png)
+![main](img/image.png)
 
 ## Features
 
