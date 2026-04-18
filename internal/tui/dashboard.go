@@ -85,11 +85,11 @@ func (d DashboardModel) View() string {
 
 	// Column widths.
 	colSt := 4
-	colIface := 8
-	colType := 16
-	colCurrent := 20
-	colPermanent := 20
-	colVendor := 14
+	colIface := 9
+	colType := 12
+	colCurrent := 19
+	colPermanent := 19
+	colVendor := 16
 	colStatus := 10
 
 	sepWidth := d.width - 6
@@ -108,8 +108,9 @@ func (d DashboardModel) View() string {
 		colStatus, "STATUS",
 	)
 	// Pad header to full width.
-	if len(header) < d.width-4 {
-		header += strings.Repeat(" ", d.width-4-len(header))
+	headerWidth := lipgloss.Width(header)
+	if headerWidth < d.width-4 {
+		header += strings.Repeat(" ", d.width-4-headerWidth)
 	}
 	b.WriteString(styleTableHeader.Render(header))
 	b.WriteString("\n")
@@ -169,43 +170,47 @@ func (d DashboardModel) View() string {
 		ifaceType := iface.ShortType()
 
 		// Build plain text row with fixed-width columns.
-		plainRow := fmt.Sprintf("  %s  %-*s %-*s %-*s %-*s %-*s %s",
-			stIcon,
-			colIface, iface.Name,
-			colType, ifaceType,
+		plainRow := fmt.Sprintf("  %s %-*s %-*s %-*s %-*s %-*s %s",
+			stIcon+"   ",
+			colIface, trunc(iface.Name, colIface-1),
+			colType, trunc(ifaceType, colType-1),
 			colCurrent, currentMAC,
 			colPermanent, permanentMAC,
-			colVendor, vendor,
+			colVendor, trunc(vendor, colVendor-1),
 			statusPlain,
 		)
 
 		// Pad to full width.
-		if len(plainRow) < rowWidth {
-			plainRow += strings.Repeat(" ", rowWidth-len(plainRow))
+		plainRowWidth := lipgloss.Width(plainRow)
+		if plainRowWidth < rowWidth {
+			plainRow += strings.Repeat(" ", rowWidth-plainRowWidth)
 		}
 
 		// Now apply colors to the whole row.
 		if isSelected {
 			// Selected row: cyan text on dark blue background, full width.
-			row := lipgloss.NewStyle().
-				Foreground(colorAccent).
-				Background(colorSelected).
-				Bold(true).
-				Render(plainRow)
+			row := styleTableSelected.Render(plainRow)
 			b.WriteString(row)
 		} else {
 			// Normal row: colorize individual parts.
 			var stStyled string
 			if iface.IsUp {
-				stStyled = styleUp.Render("●")
+				stStyled = styleUp.Render(stIcon) + "   "
 			} else {
-				stStyled = styleDown.Render("○")
+				stStyled = styleDown.Render(stIcon) + "   "
 			}
 
-			typeStyled := ifaceType
+			ifaceNamePadded := fmt.Sprintf("%-*s", colIface, trunc(iface.Name, colIface-1))
+
+			typePadded := fmt.Sprintf("%-*s", colType, trunc(ifaceType, colType-1))
+			typeStyled := typePadded
 			if iface.IsUSB {
-				typeStyled = styleOrange.Render(ifaceType)
+				typeStyled = styleOrange.Render(typePadded)
 			}
+
+			currentMACPadded := fmt.Sprintf("%-*s", colCurrent, currentMAC)
+			permanentMACPadded := fmt.Sprintf("%-*s", colPermanent, permanentMAC)
+			vendorPadded := fmt.Sprintf("%-*s", colVendor, trunc(vendor, colVendor-1))
 
 			var statusStyled string
 			if iface.IsSpoofed {
@@ -216,13 +221,13 @@ func (d DashboardModel) View() string {
 				statusStyled = styleDown.Render(statusPlain)
 			}
 
-			styledRow := fmt.Sprintf("  %s  %-*s %-*s %-*s %-*s %-*s %s",
+			styledRow := fmt.Sprintf("  %s %s %s %s %s %s %s",
 				stStyled,
-				colIface, iface.Name,
-				colType, typeStyled,
-				colCurrent, currentMAC,
-				colPermanent, permanentMAC,
-				colVendor, vendor,
+				ifaceNamePadded,
+				typeStyled,
+				currentMACPadded,
+				permanentMACPadded,
+				vendorPadded,
 				statusStyled,
 			)
 			b.WriteString(styleTableRow.Render(styledRow))
@@ -363,3 +368,11 @@ func (d DashboardModel) View() string {
 
 // styleOrange for USB adapter badge.
 var styleOrange = lipgloss.NewStyle().Foreground(colorOrange)
+
+func trunc(s string, length int) string {
+	runes := []rune(s)
+	if len(runes) > length {
+		return string(runes[:length-1]) + "…"
+	}
+	return s
+}
